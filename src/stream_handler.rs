@@ -9,7 +9,7 @@ use crate::models::server_signals::Signal;
 use crate::utils::message_decoder::{decode_message, from_utf8};
 
 pub async fn handle_stream_client(mut socket: TcpStream, mut rx: Receiver<Signal>) {
-    let mut clients: Arc<Mutex<Vec<Client>>> = Arc::new(Mutex::new(Vec::new()));
+    let clients: Arc<Mutex<Vec<Client>>> = Arc::new(Mutex::new(Vec::new()));
     let buffer = &mut [0; 100000];
 
     let clients_cloned = clients.clone();
@@ -17,7 +17,7 @@ pub async fn handle_stream_client(mut socket: TcpStream, mut rx: Receiver<Signal
         loop {
             if let Some(message) = rx.recv().await {
                 match message {
-                    Signal::IncomingClient { client, stream_id: _ } => {
+                    Signal::IncomingClient { client, stream_uuid: _ } => {
                         let mut clients = clients_cloned.lock().await;
                         clients.push(client);
                     }
@@ -28,7 +28,8 @@ pub async fn handle_stream_client(mut socket: TcpStream, mut rx: Receiver<Signal
     });
 
     loop {
-        if let message = socket.read(buffer).await.unwrap() {
+        let message = socket.read(buffer).await.unwrap();
+        if message > 0 {
             let (
                 message_c,
                 buffer_c,
@@ -44,12 +45,14 @@ pub async fn handle_stream_client(mut socket: TcpStream, mut rx: Receiver<Signal
                     },
                     StreamerMessage::Frame { bytes } => {
                         let mut clients = clients_cloned.lock().await;
+                        let mut black_list = Vec::new();
                         for client in clients.iter_mut() {
                             if let Err(_) = client.socket.write_all((&bytes).as_ref()).await {
                                 println!("Error: Couldn't send frame to client.");
-                                // clients.retain(|c| c.address != client.address.clone());
+                                black_list.push(client.address.clone());
                             }
                         }
+                        clients.retain(|client| !black_list.contains(&client.address));
                     }
                }
             });

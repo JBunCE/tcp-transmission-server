@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 pub enum ConnectionMessage{
     Connect {
         is_streamer: u8,
-        stream_id: u128,
+        stream_uuid: String,
+        user_uuid: String,
     },
     Disconnect,
 }

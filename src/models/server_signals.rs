@@ -4,10 +4,11 @@ use crate::models::server_data::Client;
 pub enum Signal{
     IncomingClient {
         client: Client,
-        stream_id: u128,
+        stream_uuid: String,
     },
     IncomingStreamer {
-        stream_id: u128,
+        stream_uuid: String,
+        user_uuid: String,
         tx: Sender<Signal>
     },
 }
